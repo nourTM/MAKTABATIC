@@ -1,0 +1,68 @@
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: route1
+          predicates:
+            - Path=/externalApi/**
+          filters:
+            - RewritePath=/externalApi/(?<s>.*), /api/${s}
+          uri: lb://books-management
+
+        - id: route2
+          predicates:
+            - Path=/notices/**
+          filters:
+            - RewritePath=/notices/(?<s>.*), /noticeApi/${s}
+          uri: lb://books-management
+
+        - id: route3
+          predicates:
+            - Path=/noticeExemplaires/**
+          filters:
+            - RewritePath=/noticeExemplaires/(?<s>.*), /exemplaires/search/findExemplairesByNotice_IdNotice?IdNotice=${s}&projection=toFront
+          uri: lb://books-management
+
+        - id: route4
+          predicates:
+            - Path=/searchNotices/**
+          filters:
+            - RewritePath=/searchNotices/(?<s>.*), /noticeApi/searchNotices/${s}
+          uri: lb://books-management
+
+        - id: route5
+          predicates:
+            - Path=/verifyExemplaireRFID/**
+          filters:
+            - RewritePath=/verifyExemplaireRFID/(?<s>.*), /exemplaireApi/verifyExemplaireRFID/${s}
+          uri: lb://books-management
+
+        - id: route6
+          predicates:
+            - Path=/addNotice
+          filters:
+            - RewritePath=/addNotice, /noticeApi/add
+          uri: lb://books-management
+
+        - id: route7
+          predicates:
+            - Path=/getReader/**
+          filters:
+            - RewritePath=/getReader/(?<s>.*), /api/readers/${s}?projection=toloan
+          uri: lb://account-management
+
+        - id: route7
+          predicates:
+            - Path=/postReader
+          filters:
+            - RewritePath=/postReader, /api/readers
+          uri: lb://account-management
+
+
+        - id: route8
+          predicates:
+            - Path=/verifyOperation
+          filters:
+            - RewritePath=/verifyOperation/(?<s>.*), /verify
+          uri: lb://ms-cmd
+
