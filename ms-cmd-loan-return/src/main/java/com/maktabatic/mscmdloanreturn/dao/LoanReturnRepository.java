@@ -13,6 +13,7 @@ import java.util.Optional;
 @RepositoryRestResource
 public interface LoanReturnRepository extends JpaRepository<LoanReturn, KeyLoanReturn> {
     List<LoanReturn> findLoanReturnById_RrOrderById_DateLoanDesc(String rr);
-    List<LoanReturn> findLoanReturnById_RbOrderById_DateLoanDesc(String rb);
-    List<LoanReturn> findLoanReturnById_State(BookState state);
+    List<LoanReturn> findLoanReturnsById_RbOrderById_DateLoanDesc(String rb);
+    List<LoanReturn> findLoanReturnsById_State(BookState state);
+    List<LoanReturn> findLoanReturnsById_RrAndId_StateOrderById_DateLoanDesc(String rr, BookState state);
 }

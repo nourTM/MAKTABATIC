@@ -44,8 +44,9 @@
         <option value="$PROJECT_DIR$/ms-retard/pom.xml" />
         <option value="$PROJECT_DIR$/ms-cmd-loan-return/pom.xml" />
         <option value="$PROJECT_DIR$/core-api/pom.xml" />
-        <option value="$PROJECT_DIR$/ms-query-loan-return/pom.xml" />
         <option value="$PROJECT_DIR$/ms-reservation/pom.xml" />
+        <option value="$PROJECT_DIR$/ms-query-loan-return/pom.xml" />
+        <option value="$USER_HOME$/Downloads/Spring-Boot-Email-Notification-Rest-Service-master/Email-Notification-Service/pom.xml" />
       </list>
     </option>
   </component>

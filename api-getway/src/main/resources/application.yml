@@ -1,6 +1,16 @@
 spring:
   cloud:
     gateway:
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedHeaders:
+              - content-type
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
       routes:
         - id: route1
           predicates:
@@ -34,7 +44,7 @@ spring:
           predicates:
             - Path=/verifyExemplaireRFID/**
           filters:
-            - RewritePath=/verifyExemplaireRFID/(?<s>.*), /exemplaireApi/verifyExemplaireRFID/${s}
+            - RewritePath=/verifyExemplaireRFID/(?<s>.*), /exemplaireApi/bookexist/${s}?projection=tocmd
           uri: lb://books-management
 
         - id: route6
@@ -64,5 +74,13 @@ spring:
             - Path=/verifyOperation
           filters:
             - RewritePath=/verifyOperation/(?<s>.*), /verify
+          uri: lb://ms-cmd
+
+
+        - id: route9
+          predicates:
+            - Path=/operation/**
+          filters:
+            - RewritePath=/operation/(?<s>.*), /command/${s}
           uri: lb://ms-cmd
 

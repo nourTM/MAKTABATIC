@@ -1,7 +1,5 @@
 package com.maktabatic.mscmdloanreturn.api;
 
-
-
 import com.maktabatic.coreapi.commands.LoanCommand;
 import com.maktabatic.coreapi.commands.ReturnCommand;
 import com.maktabatic.coreapi.dto.OperationDTO;
@@ -12,18 +10,93 @@ import com.maktabatic.coreapi.model.Reader;
 import com.maktabatic.mscmdloanreturn.aggregates.LoanReturn;
 import com.maktabatic.mscmdloanreturn.dao.LoanReturnRepository;
 import com.maktabatic.mscmdloanreturn.proxy.BooksProxy;
+import com.maktabatic.mscmdloanreturn.proxy.LateProxy;
 import com.maktabatic.mscmdloanreturn.proxy.ReaderProxy;
 import com.maktabatic.mscmdloanreturn.proxy.ReservationProxy;
 import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.web.bind.annotation.*;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
 @RestController
 @RequestMapping("command")
+@RefreshScope
 public class CommandController {
+    @Value("${invalid.rr : Your card RFID is not valid}")
+    String invalid_rr_msg;
+
+    @Value("${punished : You could not loan now, You are punished until}")
+    String punished_msg;
+
+    @Value("${late : You are too late, You have to return the book first!}")
+    String late_msg;
+
+    @Value("${already.borrowed : You had already borrowed a book, you can not loan an other until you return it!}")
+    String already_borrowed;
+
+    @Value("${invalid.rb : This is not our library book}")
+    String invalid_rb_msg;
+
+    @Value("${first.experience : This is your first experience with MAKTABATIC, right? Welcome :)\n}")
+    String first_experience;
+
+    @Value("${book.first.use : You are the first one taking this book!\n}")
+    String book_first_use;
+
+    @Value("${valid.loan : You are welcome, You could take your book.\n Best Regarding :) }")
+    String valid_loan;
+
+    @Value("${loan.borrowed.book : This is a borrowed book!}")
+    String loan_borrowed_book;
+
+    @Value("${loan.own.reserved : You could take your reserved book :) }")
+    String loan_own_reserved;
+
+    @Value("${reserved.msg : Sorry, this is already reserved. You could take an other.}")
+    String reserved_msg;
+
+    @Value("${punish.days : 7}")
+    int punishment_days;
+
+    @Value("${no.book.return : You have no book to return}")
+    String no_book_return;
+
+    @Value("${valid.return : Thank you best regards :) }")
+    String valid_return;
+
+    @Value("${late.return : Please Try to Return Books in time for not being penalized, Now you can not loan books for ${punish.days} days}")
+    String late_return;
+
+    @Value("${return.not.loaned : This is not the loaned book}")
+    String return_not_loaned;
+
+    @Value("${no.borrowed : You have no borrowed book!}")
+    String no_borrowed;
+
+    @Value("${prolong.days : 2}")
+    int prolong_valid_days;
+
+    @Value("${day : 86400000}")
+    long DAY_MILLIS;
+
+    @Value("${waiting.msg : Sorry you can not extend the time there's is other student which are waiting for it}")
+    String waiting_msg;
+
+    @Value("${loan.peroid : 15}")
+    int loan_period;
+
+    @Value("#{'${dates}'.split(',')}")
+    List<String> dates;
+
+    @Value("#{'${weekend}'.split(',')}")
+    List<String> weekend;
 
     @Autowired
     private CommandGateway commandGateway;
@@ -38,122 +111,198 @@ public class CommandController {
     @Autowired
     LoanReturnRepository loanReturnRepository;
 
-    @PostMapping("/operation")
-    public  String operation(@RequestBody OperationDTO operationDTO, @RequestParam("op") String op)
-    {
+    @Autowired
+    LateProxy lateProxy;
+
+    @PostMapping("/loan")
+    public String loan(@RequestBody OperationDTO operationDTO){
+        // starting to verify the existence of the RFIDs
+        boolean rr = false;
+        boolean rb = false;
+        boolean dispo = false;
+        boolean never_borrowed = false;
+        boolean islender = false;
+        boolean isPunished = false;
+        boolean not_borrowed = false;
+        boolean borrowed = false;
+        boolean reserved =false;
+        Reader reader = readerProxy.verifyRFIDReader(operationDTO.getRfidReader(),"toloan");
+
+        rr = (reader != null);
+
+        if(!rr) return invalid_rr_msg;
+
+        never_borrowed  = loanReturnRepository
+                .findLoanReturnById_RrOrderById_DateLoanDesc(operationDTO.getRfidReader()).isEmpty();
+
+        if (!never_borrowed) {
+            // verify if he is late
+            isPunished = lateProxy.isPunished(operationDTO.getRfidReader());
+            if (isPunished) {
+                boolean rendred = loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(operationDTO.getRfidReader())
+                        .get(0).getId().getState() == BookState.RENDERING;
+                if (rendred) return  punished_msg + new Date(
+                        loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(operationDTO.getRfidReader()).get(0).getDateReturn().getTime()+ punishment_days * DAY_MILLIS);
+                // TODO send an email to the reponsible that here is the student with late
+                return late_msg;
+            }
+
+            // verify if he already borrowing a book
+            islender = loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(operationDTO.getRfidReader())
+                    .get(0).getId().getState() == BookState.BORROWED;
+            if (islender) return already_borrowed;
+        }
+
+        Book book = booksProxy.getBook(operationDTO.getRfidBook(), "tocmd");
+        rb = (book != null);
+        if(!rb) return invalid_rb_msg;
+
+        // never borrowed
+        borrowed = !loanReturnRepository
+                .findLoanReturnsById_RbOrderById_DateLoanDesc(operationDTO.getRfidBook()).isEmpty();
+
+        if (!borrowed) {
+            commandGateway.send(
+                    new LoanCommand(
+                            new KeyLoanReturn(operationDTO.getRfidReader(), operationDTO.getRfidBook(), new Date(), BookState.BORROWED),
+                            reader, book, findDateReturn(new Date())));
+            reserved = reservationProxy.verifyReservationDisponible(book.getIdNotice(), operationDTO.getRfidReader());
+            if (reserved) {
+                commandGateway.send(
+                        new LoanCommand(new KeyLoanReturn(operationDTO.getRfidReader()
+                                , operationDTO.getRfidBook(), new Date(), BookState.BORROWED), reader, book, findDateReturn(new Date())));
+                reservationProxy.deleteReservation(book.getIdNotice(), operationDTO.getRfidReader());
+                return ((never_borrowed) ? first_experience : "")
+                        + loan_own_reserved;
+            }
+            reservationProxy.deleteReservation(book.getIdNotice(), operationDTO.getRfidReader());
+
+            return ((never_borrowed)? first_experience:"")
+                    + book_first_use +
+                    valid_loan;
+        }
+
+        not_borrowed = loanReturnRepository
+                .findLoanReturnsById_RbOrderById_DateLoanDesc
+                        (operationDTO.getRfidBook())
+                .get(0).getId().getState() != BookState.BORROWED;
+
+        if (!not_borrowed) return loan_borrowed_book;
+
+        long nbDispo = reservationProxy.countDisponible(book.getIdNotice());
+        dispo = (nbDispo != 0 );
+        if (!dispo) {
+            reserved = reservationProxy.verifyReservationDisponible(book.getIdNotice(), operationDTO.getRfidReader());
+            if (reserved) {
+                commandGateway.send(
+                        new LoanCommand(new KeyLoanReturn(operationDTO.getRfidReader()
+                                , operationDTO.getRfidBook(), new Date(), BookState.BORROWED), reader, book,findDateReturn(new Date())));
+                reservationProxy.deleteReservation(book.getIdNotice(), operationDTO.getRfidReader());
+                return ((never_borrowed) ? first_experience : "")
+                        + loan_own_reserved;
+            }
+            return reserved_msg;
+        }
+
+        commandGateway.send(
+            new LoanCommand(
+                    new KeyLoanReturn(operationDTO.getRfidReader(), operationDTO.getRfidBook(), new Date(), BookState.BORROWED),
+                    reader, book, findDateReturn(new Date())));
+        reservationProxy.deleteReservation(book.getIdNotice(), operationDTO.getRfidReader());
+
+        return (never_borrowed)?first_experience:""
+                +valid_loan;
+    }
+
+    @PostMapping("/return")
+    public String returnOp(@RequestBody OperationDTO operationDTO){
+        // starting to verify the existence of the RFIDs
+        boolean rr = false;
+        boolean borrowed = false;
+
+        Reader reader = readerProxy.verifyRFIDReader(operationDTO.getRfidReader(),"toloan");
+
+        rr = (reader != null);
+
+        if(!rr) return invalid_rr_msg;
+
+        borrowed = (!loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(operationDTO.getRfidReader()).isEmpty()
+                    && loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(operationDTO.getRfidReader())
+                .get(0).getId().getState() == BookState.BORROWED);
+        if (!borrowed) return no_book_return;
+
         List<LoanReturn> loanReturns ;
         LoanReturn lastLoanReturn = null ;
         Date now = new Date();
-        Reader reader = readerProxy.verifyRFIDReader(operationDTO.getRfidReader(),"toloan");
-        if(verifyOp(op,operationDTO.getRfidReader())) {
-            Book book = booksProxy.verifyBook(operationDTO.getRfidBook());
-
-            if (book != null) {
-                book = booksProxy.getBook(operationDTO.getRfidBook(),"tocmd");
-                Long idnotice = booksProxy.getIdNotice(operationDTO.getRfidBook());
-                book.setIdNotice(idnotice);
-                if (verifyOp(op, operationDTO.getRfidReader())) {
-                    switch (op) {
-                        case "loan":
-                            // TODO demander le nombre des examp dispo --> rfidbook
-                            long nbDispo = reservationProxy.countDisponible(idnotice);
-                            if (nbDispo > 0) {
-                                if(!loanReturnRepository
-                                        .findLoanReturnById_RbOrderById_DateLoanDesc
-                                                (operationDTO.getRfidBook()).isEmpty() && loanReturnRepository
-                                        .findLoanReturnById_RbOrderById_DateLoanDesc
-                                                (operationDTO.getRfidBook())
-                                        .get(0).getId().getState()!= BookState.BORROWED){
-                                    commandGateway.send(
-                                    new LoanCommand(
-                                    new KeyLoanReturn(operationDTO.getRfidReader(), operationDTO.getRfidBook(), new Date(),BookState.BORROWED),
-                                            reader, book));
-                                    reservationProxy.deleteReservation(idnotice, operationDTO.getRfidReader());
-                                    return "You could take your book :) ";
-                                }else if (loanReturnRepository
-                                        .findLoanReturnById_RbOrderById_DateLoanDesc
-                                                (operationDTO.getRfidBook()).isEmpty()){
-                                    commandGateway.send(
-                                            new LoanCommand(
-                                                    new KeyLoanReturn(operationDTO.getRfidReader(), operationDTO.getRfidBook(), new Date(),BookState.BORROWED),
-                                                    reader, book));
-                                    reservationProxy.deleteReservation(idnotice, operationDTO.getRfidReader());
-                                    return "You could take your book :) ";
-                                }
-                                    return "this book is already borrowed or you have not done any operation yet";
-                            } else {
-                                // TODO verifier que c lui qui a reserver si oui lancer une commande ---> rr & rb
-                                //  et demander au ms-resv de supprimer la resv sinon
-                                if (reservationProxy.verifyReservationDisponible(idnotice, operationDTO.getRfidReader())){
-                                    commandGateway.send(
-                                                new LoanCommand(new KeyLoanReturn(operationDTO.getRfidReader()
-                                                        , operationDTO.getRfidBook(), new Date(),BookState.BORROWED), reader, book));
-                                    reservationProxy.deleteReservation(idnotice,operationDTO.getRfidReader());
-                                    return "You could take your reserved book :) ";
-                                }
-                                return "Sorry, this book is not available";
-                            }
-                            // TODO envoyer une demande de suppresion
-                        case "return":
-                            loanReturns = loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(operationDTO.getRfidReader());
-                            lastLoanReturn = loanReturns.get(0);
-                            if (lastLoanReturn.getId().getRb().equals(operationDTO.getRfidBook())){
-                                if (now.before(lastLoanReturn.getDateReturn()) || now.equals(lastLoanReturn.getDateReturn())) {
-                                    commandGateway.send(
-                                            new ReturnCommand(new KeyLoanReturn(operationDTO.getRfidReader(), operationDTO.getRfidBook(), lastLoanReturn.getId().getDateLoan(), BookState.RENDERING), new Date()));
-                                    return "Thank you best regards :) ";
-                                } else {
-                                    commandGateway.send(
-                                            new ReturnCommand(new KeyLoanReturn(operationDTO.getRfidReader(), operationDTO.getRfidBook(), lastLoanReturn.getId().getDateLoan(), BookState.LATE), new Date()));
-                                    return "Please Try to Returns Books in time for not being penalized, Now you can not loan books for 7 days";
-                                }
-                            } else return "this is not the loaned book";
-                        default:
-                            return "there no such operation";
-                    }
-                }else return "This book does not exists";
-            }else{
-                return "This RFID does not correspond to any book in our Database";
-            }
-        } else if (op.equals("prolongation")){
-
-            loanReturns = loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(operationDTO.getRfidReader());
-            if (loanReturns != null && !loanReturns.isEmpty()) {
-                lastLoanReturn = loanReturns.get(0);
-                Book book = booksProxy.getBook(lastLoanReturn.getId().getRb(),"tocmd");
-
-                Long idnotice = booksProxy.getIdNotice(operationDTO.getRfidBook());
-                book.setIdNotice(idnotice);
-
-                final long DAY_MILLIS = 86400000;
-
-                Date temp = new Date(now.getTime() + 2 * DAY_MILLIS);
-                // TODO : demander au ms- resv
-                // TODO demander si il ya des reader en attente de ce livre
-                long nbdispo = reservationProxy.countDisponible(idnotice) + 1;
-                long waiting = reservationProxy.countWaiting(idnotice);
-                if (
-                        lastLoanReturn.getId().getState() == BookState.BORROWED
-                                && lastLoanReturn.getDateReturn().after(now)
-                                && (lastLoanReturn.getDateReturn().before(temp)) && (nbdispo > 0 && waiting == 0)) {
-                    commandGateway.send(
-                            new ReturnCommand(new KeyLoanReturn(operationDTO.getRfidReader(),lastLoanReturn.getId().getRb() , lastLoanReturn.getId().getDateLoan(), BookState.RENDERING), new Date()));
-
-                    commandGateway.send(
-                            new LoanCommand(new KeyLoanReturn(operationDTO.getRfidReader(), lastLoanReturn.getId().getRb(), new Date(),BookState.BORROWED), reader, book));
-                    return "You could take your book :) ";
-                } else {
-                    if (lastLoanReturn.getId().getState() != BookState.BORROWED) return  "you have not a borrowed book";
-                    else if ( (lastLoanReturn.getDateReturn().before(temp))) return "you have not extend it now we attend some reservation you could reserve this book before 2 days of expiration";
-                    else
-                        return "Sorry you can not extend the time there's is other student which are waiting for it";
+        loanReturns = loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(operationDTO.getRfidReader());
+        lastLoanReturn = loanReturns.get(0);
+        if (lastLoanReturn.getId().getRb().equals(operationDTO.getRfidBook())){
+            if (now.before(lastLoanReturn.getDateReturn()) || now.equals(lastLoanReturn.getDateReturn())) {
+                commandGateway.send(
+                        new ReturnCommand(new KeyLoanReturn(operationDTO.getRfidReader(), operationDTO.getRfidBook(), lastLoanReturn.getId().getDateLoan(), BookState.RENDERING), new Date()));
+                Long idNotice = booksProxy.getIdNotice(operationDTO.getRfidBook());
+                Long waiting = reservationProxy.countWaiting(idNotice);
+                if (waiting>0) {
+                    reservationProxy.updateDispo(idNotice);
                 }
-            } else return "you have no operation before";
+                return valid_return;
+            } else {
+                commandGateway.send(
+                        new ReturnCommand(new KeyLoanReturn(operationDTO.getRfidReader(), operationDTO.getRfidBook(), lastLoanReturn.getId().getDateLoan(), BookState.RENDERING), new Date()));
+                lateProxy.punish(operationDTO.getRfidReader(),operationDTO.getRfidBook());
+                return late_return;
+            }
+        } else return return_not_loaned;
+    }
 
-        }
-        else {
-            if(reader!=null) return "You can not do this operation";
-            return "you have passed unknown tag";
+    @PostMapping("/prolongation")
+    public  String prolongation(@RequestBody OperationDTO operationDTO)
+    {
+        boolean rr = false;
+        boolean borrowed = false;
+
+        Reader reader = readerProxy.verifyRFIDReader(operationDTO.getRfidReader(),"toloan");
+
+        rr = (reader != null);
+
+        if(!rr) return invalid_rr_msg;
+
+        borrowed = (!loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(operationDTO.getRfidReader()).isEmpty()
+                && loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(operationDTO.getRfidReader())
+                .get(0).getId().getState() == BookState.BORROWED);
+        if (!borrowed) return no_borrowed;
+
+
+        List<LoanReturn> loanReturns ;
+        LoanReturn lastLoanReturn = null ;
+        Date now = new Date();
+        loanReturns = loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(operationDTO.getRfidReader());
+
+        lastLoanReturn = loanReturns.get(0);
+        Book book = booksProxy.getBook(lastLoanReturn.getId().getRb(),"tocmd");
+
+        Long idnotice = booksProxy.getIdNotice(operationDTO.getRfidBook());
+        book.setIdNotice(idnotice);
+
+        Date temp = new Date(now.getTime() + prolong_valid_days * DAY_MILLIS);
+        //   demander au ms- resv
+        //  demander si il ya des reader en attente de ce livre
+        long waiting = reservationProxy.countWaiting(idnotice);
+
+        if (
+                lastLoanReturn.getId().getState() == BookState.BORROWED
+                        && lastLoanReturn.getDateReturn().after(now)
+                        && (lastLoanReturn.getDateReturn().before(temp)) && (waiting == 0 )) {
+            commandGateway.send(
+                    new ReturnCommand(new KeyLoanReturn(operationDTO.getRfidReader(),lastLoanReturn.getId().getRb() , lastLoanReturn.getId().getDateLoan(), BookState.RENDERING), new Date()));
+
+            commandGateway.send(
+                    new LoanCommand(new KeyLoanReturn(operationDTO.getRfidReader(), lastLoanReturn.getId().getRb(), new Date(),BookState.BORROWED), reader, book,findDateReturn(new Date())));
+            return valid_loan;
+        } else {
+            if ( waiting == 0 && now.before(new Date(lastLoanReturn.getDateReturn().getTime() - prolong_valid_days * DAY_MILLIS))) return "you cannot extend it now we attend some reservation you could reserve this book before 2 days of expiration\n starting from"+new Date(lastLoanReturn.getDateReturn().getTime() - prolong_valid_days * DAY_MILLIS);
+            else
+                return waiting_msg;
         }
     }
 
@@ -183,20 +332,29 @@ public class CommandController {
     }
 
 
-    @GetMapping("/cmd/lates")
-    List<LoanReturn> getLates(){
-        return loanReturnRepository.findLoanReturnById_State(BookState.LATE);
-    }
-    @PutMapping("/cmd/nolate")
-    void nolate(@RequestBody LoanReturn loanReturn){
-        loanReturn.getId().setState(BookState.RENDERING);
-        commandGateway.send(
-                new ReturnCommand(new KeyLoanReturn(loanReturn.getId().getRr(),loanReturn.getId().getRb()
-                        ,loanReturn.getId().getDateLoan(),loanReturn.getId().getState()), loanReturn.getDateReturn()));
-    }
-
     @GetMapping("/book/{rb}")
     public Book getbook(@PathVariable("rb") String rb){
         return booksProxy.getBook(rb,"tocmd");
+    }
+
+
+    public Date findDateReturn(Date dateLoan){
+        Calendar c = Calendar.getInstance();
+        c.setTime(dateLoan);
+        c.add(Calendar.DATE, loan_period);
+        Date dateReturn = c.getTime();
+        while (!isOpen(dateReturn)){
+            c.add(Calendar.DATE, 1);
+            dateReturn = c.getTime();
+        }
+        return dateReturn;
+    }
+
+    public boolean isOpen(Date date){
+        SimpleDateFormat day = new SimpleDateFormat("EEEE");
+        SimpleDateFormat monDay = new SimpleDateFormat("MM-dd");
+        String d = day.format(monDay);
+        String md = monDay.format(date);
+        return !weekend.contains(d) && !dates.contains(md);
     }
 }

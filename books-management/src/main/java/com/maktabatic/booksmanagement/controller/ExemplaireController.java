@@ -14,7 +14,6 @@ import javax.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
 
-@CrossOrigin
 @RestController
 @RequestMapping("exemplaireApi")
 
@@ -73,5 +72,13 @@ public class ExemplaireController  {
     @GetMapping("/nbbooks/{idNotice}")
     Long countExampTotal(@PathVariable("idNotice") Long id){
         return exemplaireRepository.countExemplairesByNotice_IdNotice(id);
+    }
+    @GetMapping("/verifyExemplaireRFID/{rfid}")
+    public boolean verifyExemplaireRFID(@PathVariable("rfid") String rfid){
+        if(exemplaireRepository.findExemplaireByRfid(rfid) != null){
+            return true;
+        }else{
+            return false;
+        }
     }
 }

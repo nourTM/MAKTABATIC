@@ -8,6 +8,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.axonframework.modelling.command.TargetAggregateIdentifier;
 
+import java.util.Date;
+
 
 @Data
 @AllArgsConstructor
@@ -17,4 +19,5 @@ public class LoanCommand {
     private KeyLoanReturn id;
     private Reader reader;
     private Book book;
+    private Date dateReturn;
 }

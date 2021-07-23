@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Future;
 @CrossOrigin(origins = "http://localhost:4200")
@@ -33,8 +34,13 @@ public class QueryController {
     }
     @GetMapping("/lastLoan")
     LoanReturn getLastLoan(@RequestParam("rr") String rr){
-        if (loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(rr)!=null && !loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(rr).isEmpty()) return loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(rr).get(0);
+        if (loanReturnRepository.findLoanReturnsById_RrOrderById_DateLoanDesc(rr)!=null && !loanReturnRepository.findLoanReturnsById_RrOrderById_DateLoanDesc(rr).isEmpty()) return loanReturnRepository.findLoanReturnsById_RrOrderById_DateLoanDesc(rr).get(0);
         else return null;
+    }
+
+    @GetMapping("/lates")
+    List<LoanReturn> getLates(){
+        return loanReturnRepository.findLoanReturnsByStateAndDateReturnBefore(BookState.BORROWED,new Date());
     }
 
 

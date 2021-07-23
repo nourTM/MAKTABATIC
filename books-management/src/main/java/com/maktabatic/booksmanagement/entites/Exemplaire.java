@@ -22,7 +22,6 @@ public class Exemplaire {
     private String rfid;
 
     private boolean lost;
-    @JsonIgnore
     @ManyToOne
     private Notice notice;
 }

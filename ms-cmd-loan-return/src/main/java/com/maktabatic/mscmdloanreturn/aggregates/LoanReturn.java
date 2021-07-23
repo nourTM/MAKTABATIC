@@ -17,11 +17,11 @@ import org.axonframework.modelling.command.AggregateLifecycle;
 import org.axonframework.spring.stereotype.Aggregate;
 
 import javax.persistence.*;
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.Date;
-
 
 @Aggregate
 @Entity
@@ -39,14 +39,10 @@ public class LoanReturn {
 
     @CommandHandler
     public LoanReturn(LoanCommand cmd){
-
-        Calendar c = Calendar.getInstance();
-        c.setTime(cmd.getId().getDateLoan());
-        c.add(Calendar.DATE, 15);
         Assert.notNull(cmd.getId(), () -> "The CMD ID should be not null");
         Assert.notNull(cmd.getReader(), () -> "The RFID Reader should be not null");
         AggregateLifecycle.apply( new LoanEvent(cmd.getId(),cmd.getReader(),cmd.getBook()
-                ,c.getTime()));
+                ,cmd.getDateReturn()));
     }
 
     @CommandHandler
@@ -67,8 +63,8 @@ public class LoanReturn {
     {
         this.id = new KeyLoanReturn(event.getId().getRr(),event.getId().getRb(),event.getId().getDateLoan(),event.getId().getState());
         this.dateReturn = event.getDateReturn();
-
     }
+
 
 
 }

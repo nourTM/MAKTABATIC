@@ -1,10 +1,7 @@
 package com.maktabatic.mscmdloanreturn.proxy;
 
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 @FeignClient(name = "ms-reservation")
 public interface ReservationProxy {
@@ -16,4 +13,6 @@ public interface ReservationProxy {
     boolean deleteReservation( @RequestParam("id") Long idnotice,@RequestParam("rr") String rr);
     @GetMapping("/api/waiting/{idNotice}")
     Long countWaiting(@PathVariable("idNotice") Long id);
+    @PatchMapping("/api/updatedispo")
+    boolean updateDispo(@RequestParam("id") Long id_notice);
 }

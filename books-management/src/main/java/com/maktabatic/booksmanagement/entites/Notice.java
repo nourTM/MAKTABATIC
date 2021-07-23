@@ -1,6 +1,7 @@
 package com.maktabatic.booksmanagement.entites;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -33,6 +34,7 @@ public class Notice {
     private String authors;
     private String categories;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "notice")
     private List<Exemplaire>  exemplaires;
 
