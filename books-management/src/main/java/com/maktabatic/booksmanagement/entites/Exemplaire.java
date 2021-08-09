@@ -1,10 +1,12 @@
 package com.maktabatic.booksmanagement.entites;
 
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import javax.persistence.*;
 
@@ -22,6 +24,9 @@ public class Exemplaire {
     private String rfid;
 
     private boolean lost;
+
+    @ToString.Exclude
     @ManyToOne
+    @JsonBackReference
     private Notice notice;
 }

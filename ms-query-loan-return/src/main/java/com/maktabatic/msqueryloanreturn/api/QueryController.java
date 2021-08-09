@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Future;
-@CrossOrigin(origins = "http://localhost:4200")
+
 @RestController
 @RequestMapping("query")
 public class QueryController {

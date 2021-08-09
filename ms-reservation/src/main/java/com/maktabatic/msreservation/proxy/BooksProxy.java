@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 public interface BooksProxy {
     @GetMapping("/exemplaireApi/nbbooks/{idNotice}")
     Long countExampTotal(@PathVariable("idNotice") Long id);
+
     @GetMapping("/exemplaireApi/idnotice/{rb}")
     Long getIdNotice(@PathVariable("rb") String rb);
 }

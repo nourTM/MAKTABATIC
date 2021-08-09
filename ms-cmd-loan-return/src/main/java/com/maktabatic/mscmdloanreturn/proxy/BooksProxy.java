@@ -10,8 +10,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 public interface BooksProxy {
     @GetMapping("/exemplaireApi/idnotice/{rb}")
     Long getIdNotice(@PathVariable("rb") String rb);
+
     @GetMapping("/exemplaires/search/findExemplaireByRfid")
     Book getBook(@RequestParam("rb") String rb, @RequestParam("projection") String projection);
+
     @GetMapping("/exemplaireApi/bookexist/{rb}")
     Book verifyBook(@PathVariable("rb") String rb);
 }

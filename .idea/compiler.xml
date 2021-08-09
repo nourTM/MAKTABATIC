@@ -12,8 +12,8 @@
         <module name="account-management" />
         <module name="google-books-api" />
         <module name="ms-cmd-loan-return" />
-        <module name="books-management" />
         <module name="ms-retard" />
+        <module name="books-management" />
         <module name="core-api" />
         <module name="ms-config" />
         <module name="api-getway" />
@@ -30,6 +30,7 @@
       <module name="gateway" target="1.8" />
       <module name="gestion-ouvrages" target="1.8" />
       <module name="google-books-api" target="1.8" />
+      <module name="ms-cmd" target="1.8" />
       <module name="ms-cmd-loan-return" target="1.8" />
       <module name="ms-config" target="1.8" />
       <module name="ms-gestion-ouvrages" target="1.8" />
@@ -50,6 +51,7 @@
       <module name="gateway" options="-parameters" />
       <module name="gestion-ouvrages" options="-parameters" />
       <module name="google-books-api" options="-parameters" />
+      <module name="ms-cmd" options="-parameters" />
       <module name="ms-cmd-loan-return" options="-parameters" />
       <module name="ms-config" options="-parameters" />
       <module name="ms-gestion-ouvrages" options="-parameters" />

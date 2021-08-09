@@ -1,0 +1,4 @@
+org\email\notification\AppStart.class
+org\email\notification\model\EmailTemplate.class
+org\email\notification\controller\TextEmailController.class
+org\email\notification\service\EmailService.class

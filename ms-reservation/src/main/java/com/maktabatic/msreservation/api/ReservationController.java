@@ -15,6 +15,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Key;
 import java.util.Date;
 import java.util.List;
 
@@ -103,20 +104,23 @@ public class ReservationController {
     }
 
     @PostMapping("/reservation")
-    public String reserve(@Validated @RequestBody Reservation reservation){
-        boolean islate = lateProxy.isPunished(reservation.getId().getRr());
+    public String reserve(@Validated @RequestBody KeyReservation key){
+        boolean islate = lateProxy.isPunished(key.getRr());
         if (islate) return punished;
-        if (readerProxy.verifyRFIDReader(reservation.getId().getRr(),"toloan")!=null) {
-            LoanReturn lastLoan = loanReturnProxy.getLastLoan(reservation.getId().getRr());
-            List<Reservation> reservations_nodispo = reservartionRepository.findReservationsById_RrAndAndDisponibleFalse(reservation.getId().getRr());
-            long nbresv = reservartionRepository.countReservationsById_RrAndDisponibleTrue(reservation.getId().getRr());
-            if (countDisponible(reservation.getId().getIdNotice()) > 0 && nbresv == 0 && (lastLoan == null || lastLoan.getState() == BookState.RENDERING)) {
+        if (readerProxy.verifyRFIDReader(key.getRr(),"toloan")!=null) {
+            List<Reservation> reservations_nodispo = reservartionRepository.findReservationsById_RrAndAndDisponibleFalse(key.getRr());
+            long nbresv = reservartionRepository.countReservationsById_RrAndDisponibleTrue(key.getRr());
+            if (countDisponible(key.getIdNotice()) > 0 && nbresv == 0) {
+                Reservation reservation = new Reservation();
+                reservation.setId(key);
                 reservation.setDisponible(true);
                 reservation.setDateResv(new Date());
                 if (reservations_nodispo!=null && reservations_nodispo.size()>0) reservartionRepository.delete(reservations_nodispo.get(0));
                 reservartionRepository.save(reservation);
                 return valid_reserve;
-            } else if (countDisponible(reservation.getId().getIdNotice()) <= 0) {
+            } else if (countDisponible(key.getIdNotice()) <= 0) {
+                if (reservations_nodispo!=null && reservations_nodispo.size()>0) reservartionRepository.delete(reservations_nodispo.get(0));
+                Reservation reservation = new Reservation();
                 reservation.setDisponible(false);
                 reservation.setDateResv(new Date());
                 reservartionRepository.save(reservation);

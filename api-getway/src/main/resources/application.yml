@@ -5,12 +5,8 @@ spring:
         corsConfigurations:
           '[/**]':
             allowedOrigins: "*"
-            allowedHeaders:
-              - content-type
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
+            allowedHeaders: "*"
+            allowedMethods: "*"
       routes:
         - id: route1
           predicates:
@@ -83,4 +79,11 @@ spring:
           filters:
             - RewritePath=/operation/(?<s>.*), /command/${s}
           uri: lb://ms-cmd
+
+        - id: route10
+          predicates:
+            - Path=/reservation
+          filters:
+            - RewritePath=/reservation, /api/reservation
+          uri: lb://ms-reservation
 

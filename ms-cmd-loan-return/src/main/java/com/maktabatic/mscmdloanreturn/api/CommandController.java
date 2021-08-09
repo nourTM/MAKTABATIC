@@ -7,7 +7,7 @@ import com.maktabatic.coreapi.model.Book;
 import com.maktabatic.coreapi.model.BookState;
 import com.maktabatic.coreapi.model.KeyLoanReturn;
 import com.maktabatic.coreapi.model.Reader;
-import com.maktabatic.mscmdloanreturn.aggregates.LoanReturn;
+import com.maktabatic.mscmdloanreturn.aggregates.LoanRetur;
 import com.maktabatic.mscmdloanreturn.dao.LoanReturnRepository;
 import com.maktabatic.mscmdloanreturn.proxy.BooksProxy;
 import com.maktabatic.mscmdloanreturn.proxy.LateProxy;
@@ -19,7 +19,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.web.bind.annotation.*;
 
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -231,8 +230,8 @@ public class CommandController {
                 .get(0).getId().getState() == BookState.BORROWED);
         if (!borrowed) return no_book_return;
 
-        List<LoanReturn> loanReturns ;
-        LoanReturn lastLoanReturn = null ;
+        List<LoanRetur> loanReturns ;
+        LoanRetur lastLoanReturn = null ;
         Date now = new Date();
         loanReturns = loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(operationDTO.getRfidReader());
         lastLoanReturn = loanReturns.get(0);
@@ -273,8 +272,8 @@ public class CommandController {
         if (!borrowed) return no_borrowed;
 
 
-        List<LoanReturn> loanReturns ;
-        LoanReturn lastLoanReturn = null ;
+        List<LoanRetur> loanReturns ;
+        LoanRetur lastLoanReturn = null ;
         Date now = new Date();
         loanReturns = loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(operationDTO.getRfidReader());
 
@@ -309,8 +308,8 @@ public class CommandController {
     @GetMapping("/verify")
     public boolean verifyOp(@RequestParam("op") String operation,@RequestParam("rr") String rr ){
         if(readerProxy.verifyRFIDReader(rr,"toloan") != null) {
-            List<LoanReturn> loanReturns = loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(rr);
-            LoanReturn lastLoanReturn = null ;
+            List<LoanRetur> loanReturns = loanReturnRepository.findLoanReturnById_RrOrderById_DateLoanDesc(rr);
+            LoanRetur lastLoanReturn = null ;
             if(loanReturns != null && !loanReturns.isEmpty())  lastLoanReturn = loanReturns.get(0);
             switch (operation){
                 case "loan":
@@ -327,7 +326,7 @@ public class CommandController {
     }
 
     @GetMapping("/loans")
-    public List<LoanReturn> getloans(){
+    public List<LoanRetur> getloans(){
         return loanReturnRepository.findAll();
     }
 
